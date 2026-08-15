@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Burguer House</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── TOKENS ───────────────────────────────────── */
+    :root {
+      --red:      #E63030;
+      --red-dark: #B52020;
+      --red-glow: rgba(230,48,48,.15);
+      --bg:       #111113;
+      --surface:  #1A1A1E;
+      --card:     #222228;
+      --border:   #2E2E36;
+      --text:     #F0F0F4;
+      --muted:    #888896;
+      --green:    #4ade80;
+      --yellow:   #facc15;
+      --r:        10px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: var(--surface); } ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── LOGIN ────────────────────────────────────── */
+    #loginScreen {
+      min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 24px;
+      background: radial-gradient(ellipse at 60% 40%, rgba(230,48,48,.08) 0%, transparent 70%);
+    }
+    .login-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 40px 32px;
+      width: 100%; max-width: 380px; text-align: center;
+    }
+    .login-icon {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--red-glow); border: 1px solid var(--red);
+      display: grid; place-items: center; margin: 0 auto 20px;
+      font-size: 1.5rem;
+    }
+    .login-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.6rem; font-weight: 900; margin-bottom: 6px; }
+    .login-sub { font-size: .85rem; color: var(--muted); margin-bottom: 28px; }
+    .login-input {
+      width: 100%; background: var(--card); border: 1px solid var(--border);
+      color: var(--text); border-radius: var(--r);
+      padding: 13px 16px; font-size: 1rem; outline: none;
+      text-align: center; letter-spacing: .15em;
+      margin-bottom: 10px; transition: border-color .2s;
+    }
+    .login-input:focus { border-color: var(--red); }
+    .login-input::placeholder { letter-spacing: 0; color: var(--muted); }
+    .login-error { color: #f87171; font-size: .8rem; margin-bottom: 12px; min-height: 18px; }
+    .btn-login {
+      width: 100%; background: var(--red); color: #fff;
+      border: none; border-radius: var(--r);
+      padding: 14px; font-size: 1rem; font-weight: 700;
+      cursor: pointer; transition: background .2s;
+    }
+    .btn-login:hover { background: var(--red-dark); }
+
+    /* ── ADMIN SHELL ──────────────────────────────── */
+    #adminScreen { display: none; flex-direction: column; min-height: 100dvh; }
+
+    /* ── TOPBAR ───────────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(17,17,19,.94); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      height: 58px; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-logo { font-family: 'Barlow Condensed', sans-serif; font-size: 1.3rem; font-weight: 900; display: flex; align-items: center; gap: 10px; }
+    .topbar-logo-icon { width: 34px; height: 34px; background: var(--red); border-radius: 8px; display: grid; place-items: center; font-size: 1.1rem; }
+    .topbar-badge { background: var(--red-glow); border: 1px solid var(--red); color: var(--red); font-size: .68rem; font-weight: 700; border-radius: 50px; padding: 2px 10px; margin-left: 4px; }
+    .topbar-actions { display: flex; gap: 10px; align-items: center; }
+    .btn-back, .btn-logout {
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); border-radius: var(--r);
+      padding: 0 14px; height: 36px; font-size: .8rem; font-weight: 600;
+      cursor: pointer; display: flex; align-items: center; gap: 6px;
+      transition: background .2s; text-decoration: none; white-space: nowrap;
+    }
+    .btn-back:hover, .btn-logout:hover { background: var(--border); }
+    .btn-logout { color: #f87171; border-color: rgba(248,113,113,.3); }
+    .btn-logout:hover { background: rgba(248,113,113,.1); }
+
+    /* ── TABS ─────────────────────────────────────── */
+    .tabs-bar {
+      display: flex; gap: 4px; overflow-x: auto;
+      padding: 16px 20px 0; border-bottom: 1px solid var(--border);
+      scrollbar-width: none;
+    }
+    .tabs-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); padding: 10px 18px; font-size: .88rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap; flex-shrink: 0;
+      transition: color .2s, border-color .2s;
+    }
+    .tab-btn.active { color: var(--red); border-bottom-color: var(--red); }
+    .tab-btn:hover:not(.active) { color: var(--text); }
+
+    /* ── CONTENT ──────────────────────────────────── */
+    .content { flex: 1; padding: 28px 20px 100px; max-width: 860px; margin: 0 auto; width: 100%; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── SECTION TITLE ────────────────────────────── */
+    .section-title { font-family: 'Barlow Condensed', sans-serif; font-size: 1.5rem; font-weight: 900; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+
+    /* ── FORM CARD ────────────────────────────────── */
+    .form-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+      margin-bottom: 20px;
+    }
+    .form-card .full { grid-column: 1 / -1; }
+    .form-label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-radius: 8px;
+      padding: 10px 12px; font-size: .88rem; outline: none;
+      transition: border-color .2s; font-family: inherit;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--red); }
+    .form-input::placeholder, .form-textarea::placeholder { color: var(--muted); }
+    .form-select option { background: var(--surface); }
+    .form-textarea { resize: vertical; min-height: 72px; }
+    .form-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+    /* ── BUTTONS ──────────────────────────────────── */
+    .btn-primary {
+      background: var(--red); color: #fff; border: none;
+      border-radius: 8px; padding: 10px 20px;
+      font-size: .88rem; font-weight: 700; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 6px;
+      transition: background .2s;
+    }
+    .btn-primary:hover { background: var(--red-dark); }
+    .btn-ghost {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: 10px 16px;
+      font-size: .88rem; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-ghost:hover { background: var(--border); color: var(--text); }
+    .btn-icon {
+      background: none; border: none; cursor: pointer;
+      font-size: .82rem; font-weight: 600;
+      transition: color .2s; padding: 4px 8px; border-radius: 6px;
+    }
+    .btn-edit { color: var(--red); }
+    .btn-delete { color: #f87171; }
+    .btn-edit:hover { background: var(--red-glow); }
+    .btn-delete:hover { background: rgba(248,113,113,.1); }
+
+    /* ── TABLE ────────────────────────────────────── */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th { text-align: left; padding: 12px 16px; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--surface); }
+    td { padding: 12px 16px; border-top: 1px solid var(--border); vertical-align: middle; }
+    .thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; }
+    .thumb-empty { width: 44px; height: 44px; border-radius: 8px; background: var(--surface); display: grid; place-items: center; font-size: 1.2rem; }
+    .td-actions { display: flex; gap: 4px; }
+    .badge-status {
+      font-size: .72rem; font-weight: 700; border-radius: 50px;
+      padding: 3px 10px; border: 1px solid;
+    }
+    .badge-pendente  { color: var(--yellow); border-color: var(--yellow); background: rgba(250,204,21,.1); }
+    .badge-confirmado{ color: var(--green);  border-color: var(--green);  background: rgba(74,222,128,.1); }
+    .badge-entregue  { color: var(--muted);  border-color: var(--border); background: var(--surface); }
+    .badge-cancelado { color: #f87171; border-color: #f87171; background: rgba(248,113,113,.1); }
+
+    /* ── IMAGE UPLOAD ─────────────────────────────── */
+    .img-gallery { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; margin-top: 6px; }
+    .img-preview {
+      position: relative; width: 80px; height: 80px;
+      border-radius: 10px; overflow: hidden; border: 1px solid var(--border);
+    }
+    .img-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .img-remove {
+      position: absolute; top: 3px; right: 3px;
+      background: rgba(0,0,0,.7); color: #fff; border: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      font-size: .7rem; display: grid; place-items: center; cursor: pointer;
+    }
+    .img-main-tag {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(230,48,48,.85); color: #fff;
+      font-size: .6rem; font-weight: 700; text-align: center; padding: 2px 0;
+    }
+    .upload-box {
+      width: 80px; height: 80px; border-radius: 10px;
+      border: 1.5px dashed var(--border); background: var(--surface);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 4px; cursor: pointer; font-size: .68rem; color: var(--muted);
+      transition: border-color .2s, color .2s;
+    }
+    .upload-box:hover { border-color: var(--red); color: var(--red); }
+    .upload-box span { font-size: 1.3rem; }
+    input[type="file"] { display: none; }
+
+    /* ── CATEGORY GRID ────────────────────────────── */
+    .cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+    .cat-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+    }
+    .cat-preview {
+      width: 100%; aspect-ratio: 4/3; border-radius: 10px;
+      background: var(--surface); background-size: cover; background-position: center;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+    }
+    .cat-name { font-size: .85rem; font-weight: 700; }
+    .cat-actions { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .btn-upload {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: 8px;
+      font-size: .78rem; font-weight: 600; cursor: pointer;
+      transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-upload:hover { border-color: var(--red); color: var(--red); }
+    .btn-remove-img {
+      width: 100%; background: none; border: 1px solid rgba(248,113,113,.3);
+      color: #f87171; border-radius: 8px; padding: 8px;
+      font-size: .78rem; font-weight: 600; cursor: pointer;
+      transition: background .2s;
+    }
+    .btn-remove-img:hover { background: rgba(248,113,113,.1); }
+
+    /* ── ORDERS ───────────────────────────────────── */
+    .orders-list { display: flex; flex-direction: column; gap: 12px; }
+    .order-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+    .order-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+    .order-num { font-weight: 700; font-size: .92rem; }
+    .order-meta { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+    .order-items-list { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 8px 0; margin-bottom: 10px; display: flex; flex-direction: column; gap: 3px; }
+    .order-item-line { font-size: .82rem; color: var(--muted); }
+    .order-footer { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .order-total { font-weight: 700; color: var(--red); font-size: .92rem; }
+    .status-select {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-radius: 50px; padding: 5px 12px;
+      font-size: .78rem; font-weight: 600; outline: none; cursor: pointer;
+    }
+    .status-select:focus { border-color: var(--red); }
+
+    /* ── COUPONS ──────────────────────────────────── */
+    .coupon-form { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: flex-end; }
+    .coupon-form .fg { display: flex; flex-direction: column; gap: 5px; }
+    .coupon-form .fg input { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px 14px; font-size: .88rem; outline: none; font-family: inherit; transition: border-color .2s; }
+    .coupon-form .fg input:focus { border-color: var(--red); }
+
+    /* ── SAVE BAR ─────────────────────────────────── */
+    .save-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 14px 20px;
+      display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+    }
+    .save-hint { font-size: .8rem; color: var(--muted); }
+    .btn-save {
+      background: var(--red); color: #fff; border: none;
+      border-radius: var(--r); padding: 12px 28px;
+      font-size: .95rem; font-weight: 700; cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: background .2s;
+    }
+    .btn-save:hover { background: var(--red-dark); }
+    .btn-save:disabled { opacity: .6; cursor: not-allowed; }
+    .save-bar-spacer { height: 72px; }
+
+    /* ── TOAST ────────────────────────────────────── */
+    .toast {
+      position: fixed; bottom: 90px; left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 50px; padding: 10px 20px;
+      font-size: .85rem; font-weight: 600;
+      z-index: 200; white-space: nowrap;
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+      transition: transform .3s;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── EMPTY STATE ──────────────────────────────── */
+    .empty { text-align: center; padding: 48px 20px; color: var(--muted); font-size: .9rem; }
+    .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 500px) {
+      .form-card { grid-template-columns: 1fr; }
+      .form-card .full { grid-column: 1; }
+      .form-actions { grid-column: 1; }
+      .save-hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══════════════════════════════════════ -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-icon">🔒</div>
+    <div class="login-title">Área Restrita</div>
+    <p class="login-sub">Digite a senha para acessar o painel administrativo.</p>
+    <input class="login-input" type="password" id="pwdInput" placeholder="Senha" maxlength="30"
+      onkeydown="if(event.key==='Enter') tryLogin()" />
+    <div class="login-error" id="loginError"></div>
+    <button class="btn-login" onclick="tryLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ══ ADMIN ═══════════════════════════════════════ -->
+<div id="adminScreen">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <div class="topbar-logo-icon">🍔</div>
+      Burguer House
+      <span class="topbar-badge">ADMIN</span>
+    </div>
+    <div class="topbar-actions">
+      <a href="index.html" class="btn-back">← Ver site</a>
+      <button class="btn-logout" onclick="logout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- TABS -->
+  <nav class="tabs-bar" aria-label="Seções do painel">
+    <button class="tab-btn active" onclick="switchTab('produtos')">🍔 Produtos</button>
+    <button class="tab-btn" onclick="switchTab('carrossel')">🖼️ Carrossel</button>
+    <button class="tab-btn" onclick="switchTab('pedidos')">📦 Pedidos</button>
+    <button class="tab-btn" onclick="switchTab('cupons')">🏷️ Cupons</button>
+  </nav>
+
+  <main class="content">
+
+    <!-- ─── PRODUTOS ─────────────────────────────── -->
+    <section class="tab-panel active" id="tab-produtos">
+      <h2 class="section-title">🍔 Produtos</h2>
+
+      <div class="form-card" id="productForm">
+        <div>
+          <label class="form-label">Nome *</label>
+          <input class="form-input" id="pName" placeholder="Ex: Smash Clássico" />
+        </div>
+        <div>
+          <label class="form-label">Preço (R$) *</label>
+          <input class="form-input" id="pPrice" type="number" step="0.01" placeholder="0,00" />
+        </div>
+        <div>
+          <label class="form-label">Categoria *</label>
+          <select class="form-select" id="pCat">
+            <option value="Combos">Combos</option>
+            <option value="Hambúrgueres">Hambúrgueres</option>
+            <option value="Bebidas">Bebidas</option>
+            <option value="Sobremesas">Sobremesas</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">URL da imagem</label>
+          <input class="form-input" id="pImg" placeholder="https://..." />
+        </div>
+        <div class="full">
+          <label class="form-label">Descrição *</label>
+          <textarea class="form-textarea" id="pDesc" placeholder="Ingredientes e detalhes do produto..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="saveProduct()">💾 Salvar produto</button>
+          <button class="btn-ghost" onclick="clearProductForm()">Limpar</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Foto</th>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Preço</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="productsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─── CARROSSEL ─────────────────────────────── -->
+    <section class="tab-panel" id="tab-carrossel">
+      <h2 class="section-title">🖼️ Imagens do Carrossel</h2>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:20px">Cole URLs de imagens para cada slide do carrossel do topo do site.</p>
+
+      <div class="form-card" style="grid-template-columns:1fr">
+        <div id="carrosselSlots"></div>
+        <div class="form-actions" style="margin-top:4px">
+          <button class="btn-primary" onclick="addCarrosselSlot()">+ Adicionar slide</button>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px">
+        <p style="font-size:.85rem;font-weight:700;margin-bottom:12px">Pré-visualização</p>
+        <div id="carrosselPreview" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+      </div>
+    </section>
+
+    <!-- ─── PEDIDOS ───────────────────────────────── -->
+    <section class="tab-panel" id="tab-pedidos">
+      <h2 class="section-title">📦 Pedidos</h2>
+      <div id="ordersList"></div>
+    </section>
+
+    <!-- ─── CUPONS ────────────────────────────────── -->
+    <section class="tab-panel" id="tab-cupons">
+      <h2 class="section-title">🏷️ Cupons de Desconto</h2>
+
+      <div class="coupon-form">
+        <div class="fg">
+          <label class="form-label">Código do cupom</label>
+          <input id="couponCode" placeholder="EX: PROMO10" maxlength="20"
+            oninput="this.value=this.value.toUpperCase()" style="text-transform:uppercase;letter-spacing:.05em" />
+        </div>
+        <div class="fg">
+          <label class="form-label">Desconto (%)</label>
+          <input id="couponPct" type="number" min="1" max="100" placeholder="10" style="width:100px" />
+        </div>
+        <button class="btn-primary" onclick="addCoupon()">+ Adicionar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Código</th><th>Desconto</th><th>Ações</th></tr>
+          </thead>
+          <tbody id="couponsTable"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="save-bar-spacer"></div>
+
+  <!-- SAVE BAR -->
+  <div class="save-bar">
+    <span class="save-hint">As alterações ficam salvas localmente até você publicar</span>
+    <button class="btn-save" id="saveBtn" onclick="saveAll()">💾 Salvar alterações</button>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══ SUPABASE ═════════════════════════════════════ */
+const SB_URL = 'https://euhhpstfclazvlxxfona.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1aGhwc3RmY2xhenZseHhmb25hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MDM4NTYsImV4cCI6MjEwMjM3OTg1Nn0.8OGgixlYTvSzXwD4Vl4oYksJOwZqMuMpGRY2-p4nrxA';
+const HDR = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=representation' };
+
+async function sbGet(table, filter='', order='') {
+  const qs = [filter, order ? 'order='+order : ''].filter(Boolean).join('&');
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${qs}`, { headers: HDR });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbInsert(table, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}`, { method:'POST', headers: HDR, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbUpdate(table, filter, body) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, { method:'PATCH', headers: HDR, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(await r.text());
+}
+async function sbDelete(table, filter) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?${filter}`, { method:'DELETE', headers: HDR });
+  if (!r.ok) throw new Error(await r.text());
+}
+
+/* ══ CONFIG ═══════════════════════════════════════ */
+const ADMIN_PASSWORD = '09042010';
+
+/* ══ STATE ════════════════════════════════════════ */
+let products = [];
+let coupons  = [];
+let carrossel = [];
+let editingProductId = null;
+
+/* ══ LOGIN ════════════════════════════════════════ */
+function tryLogin() {
+  const pwd = document.getElementById('pwdInput').value;
+  if (pwd === ADMIN_PASSWORD) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'flex';
+    init();
+  } else {
+    document.getElementById('loginError').textContent = 'Senha incorreta.';
+    document.getElementById('pwdInput').value = '';
+    document.getElementById('pwdInput').focus();
+  }
+}
+
+function logout() {
+  document.getElementById('adminScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('pwdInput').value = '';
+  document.getElementById('loginError').textContent = '';
+}
+
+/* ══ TABS ═════════════════════════════════════════ */
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (name === 'pedidos')   renderOrders();
+  if (name === 'carrossel') renderCarrossel();
+}
+
+/* ══ INIT ═════════════════════════════════════════ */
+async function init() {
+  try {
+    await Promise.all([loadProducts(), loadCoupons(), loadCarrossel()]);
+  } catch(e) {
+    console.error(e);
+    showToast('⚠️ Erro ao carregar dados do Supabase.');
+  }
+}
+
+/* ══ PRODUCTS ═════════════════════════════════════ */
+async function loadProducts() {
+  const data = await sbGet('produtos', '', 'categoria,id');
+  products = data.map(p => ({ id: p.id, cat: p.categoria, name: p.nome, desc: p.descricao, price: parseFloat(p.preco), img: p.imagem_url || '', ativo: p.ativo }));
+  renderProductsTable();
+}
+
+function renderProductsTable() {
+  const tbody = document.getElementById('productsTable');
+  if (!products.length) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-icon">🍔</div>Nenhum produto cadastrado.</div></td></tr>`; return; }
+  tbody.innerHTML = products.map(p => `
+    <tr style="${p.ativo ? '' : 'opacity:.45'}">
+      <td>${p.img ? `<img class="thumb" src="${p.img}" alt="${p.name}" onerror="this.style.display='none'" />` : `<div class="thumb-empty">🍔</div>`}</td>
+      <td style="font-weight:600">${p.name} ${p.ativo ? '' : '<span style="font-size:.7rem;color:var(--muted)">(inativo)</span>'}</td>
+      <td style="color:var(--muted)">${p.cat}</td>
+      <td style="color:var(--red);font-weight:700">R$ ${fmt(p.price)}</td>
+      <td><div class="td-actions">
+        <button class="btn-icon btn-edit" onclick="editProduct(${p.id})">✏️ Editar</button>
+        <button class="btn-icon btn-delete" onclick="deleteProduct(${p.id})">🗑 Excluir</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+async function saveProduct() {
+  const name  = document.getElementById('pName').value.trim();
+  const price = parseFloat(document.getElementById('pPrice').value);
+  const cat   = document.getElementById('pCat').value;
+  const desc  = document.getElementById('pDesc').value.trim();
+  const img   = document.getElementById('pImg').value.trim();
+
+  if (!name || !price || !desc) { showToast('⚠️ Preencha nome, preço e descrição.'); return; }
+
+  const btn = document.querySelector('#productForm .btn-primary');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+
+  try {
+    if (editingProductId) {
+      await sbUpdate('produtos', `id=eq.${editingProductId}`, { nome: name, preco: price, categoria: cat, descricao: desc, imagem_url: img || null });
+      const idx = products.findIndex(p => p.id === editingProductId);
+      if (idx > -1) products[idx] = { ...products[idx], name, price, cat, desc, img };
+      editingProductId = null;
+    } else {
+      const [row] = await sbInsert('produtos', { nome: name, preco: price, categoria: cat, descricao: desc, imagem_url: img || null });
+      products.push({ id: row.id, cat, name, desc, price, img, ativo: true });
+    }
+    clearProductForm();
+    renderProductsTable();
+    showToast('✅ Produto salvo!');
+  } catch(e) {
+    showToast('❌ Erro ao salvar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 Salvar produto';
+  }
+}
+
+function editProduct(id) {
+  const p = products.find(p => p.id === id);
+  if (!p) return;
+  editingProductId = id;
+  document.getElementById('pName').value  = p.name;
+  document.getElementById('pPrice').value = p.price;
+  document.getElementById('pCat').value   = p.cat;
+  document.getElementById('pDesc').value  = p.desc || '';
+  document.getElementById('pImg').value   = p.img || '';
+  document.querySelector('#productForm .btn-primary').textContent = '💾 Atualizar produto';
+  document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Excluir este produto?')) return;
+  try {
+    await sbDelete('produtos', `id=eq.${id}`);
+    products = products.filter(p => p.id !== id);
+    renderProductsTable();
+    showToast('🗑 Produto removido.');
+  } catch(e) { showToast('❌ Erro: ' + e.message); }
+}
+
+function clearProductForm() {
+  editingProductId = null;
+  ['pName','pPrice','pDesc','pImg'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pCat').value = 'Combos';
+  document.querySelector('#productForm .btn-primary').textContent = '💾 Salvar produto';
+}
+
+/* ══ CARROSSEL ════════════════════════════════════ */
+async function loadCarrossel() {
+  const data = await sbGet('carrossel', 'ativo=eq.true', 'ordem');
+  carrossel = data.map(d => ({ id: d.id, ordem: d.ordem, url: d.url }));
+  renderCarrossel();
+}
+
+function renderCarrossel() {
+  const slots = document.getElementById('carrosselSlots');
+  const preview = document.getElementById('carrosselPreview');
+
+  slots.innerHTML = carrossel.map((slide, i) => `
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
+      <span style="font-size:.78rem;color:var(--muted);width:60px;flex-shrink:0">Slide ${i+1}</span>
+      <input class="form-input" style="flex:1" value="${slide.url}" placeholder="https://..." oninput="carrossel[${i}].url=this.value;renderCarrosselPreview()" />
+      <button class="btn-icon btn-delete" onclick="removeCarrosselSlot(${i})" title="Remover">✕</button>
+    </div>
+  `).join('');
+
+  renderCarrosselPreview();
+}
+
+function renderCarrosselPreview() {
+  document.getElementById('carrosselPreview').innerHTML = carrossel.map((slide, i) => slide.url ? `
+    <div style="position:relative;flex-shrink:0">
+      <img src="${slide.url}" style="height:70px;width:110px;object-fit:cover;border-radius:8px;border:1px solid var(--border)" onerror="this.style.opacity='.3'" />
+      <span style="position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.7);color:#fff;font-size:.6rem;padding:2px 6px;border-radius:4px">Slide ${i+1}</span>
+    </div>
+  ` : '').join('');
+}
+
+function addCarrosselSlot() {
+  carrossel.push({ id: null, ordem: carrossel.length + 1, url: '' });
+  renderCarrossel();
+}
+
+function removeCarrosselSlot(i) {
+  carrossel.splice(i, 1);
+  renderCarrossel();
+}
+
+/* ══ ORDERS ═══════════════════════════════════════ */
+async function renderOrders() {
+  const el = document.getElementById('ordersList');
+  el.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div>Carregando pedidos...</div>`;
+  try {
+    const orders = await sbGet('pedidos', '', 'criado_em.desc');
+    if (!orders.length) { el.innerHTML = `<div class="empty"><div class="empty-icon">📦</div>Nenhum pedido ainda.</div>`; return; }
+    el.innerHTML = `<div class="orders-list">` + orders.map(o => {
+      const itens = Array.isArray(o.itens) ? o.itens.map(i => `${i.qty}x ${i.nome}`).join(', ') : '';
+      const data = new Date(o.criado_em).toLocaleString('pt-BR');
+      return `
+        <div class="order-card">
+          <div class="order-head">
+            <div>
+              <div class="order-num">Pedido #${o.numero}</div>
+              <div class="order-meta">👤 ${o.cliente} · 📞 ${o.telefone || '—'} · 📅 ${data}</div>
+              <div class="order-meta" style="margin-top:2px">💳 ${o.pagamento||'—'} · 🚚 ${o.entrega==='entrega'?'Delivery':'Retirada'}${o.endereco ? ' — ' + o.endereco : ''}</div>
+            </div>
+            <select class="status-select" onchange="updateOrderStatus(${o.id}, this.value)">
+              ${['Aguardando confirmação','Confirmado','Em preparo','Saiu para entrega','Entregue','Cancelado'].map(s =>
+                `<option value="${s}" ${o.status===s?'selected':''}>${s}</option>`
+              ).join('')}
+            </select>
+          </div>
+          <div class="order-items-list">
+            ${(o.itens||[]).map(i => `<div class="order-item-line">• ${i.qty}x ${i.nome} — R$ ${fmt(i.preco * i.qty)}</div>`).join('')}
+            ${o.observacoes ? `<div class="order-item-line" style="margin-top:4px;color:var(--red)">📝 ${o.observacoes}</div>` : ''}
+          </div>
+          <div class="order-footer">
+            <span class="order-total">Total: R$ ${fmt(o.total)}${o.desconto>0?' (desconto: -R$ '+fmt(o.desconto)+')':''}</span>
+            <button class="btn-icon btn-delete" onclick="deleteOrder(${o.id})">🗑 Remover</button>
+          </div>
+        </div>`;
+    }).join('') + `</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ Erro ao carregar pedidos.</div>`; }
+}
+
+async function updateOrderStatus(id, status) {
+  try {
+    await sbUpdate('pedidos', `id=eq.${id}`, { status });
+    showToast('✅ Status atualizado!');
+  } catch(e) { showToast('❌ Erro: ' + e.message); }
+}
+
+async function deleteOrder(id) {
+  if (!confirm('Remover este pedido?')) return;
+  try {
+    await sbDelete('pedidos', `id=eq.${id}`);
+    renderOrders();
+    showToast('🗑 Pedido removido.');
+  } catch(e) { showToast('❌ Erro: ' + e.message); }
+}
+
+/* ══ COUPONS ══════════════════════════════════════ */
+async function loadCoupons() {
+  const data = await sbGet('cupons', '', 'id');
+  coupons = data;
+  renderCouponsTable();
+}
+
+function renderCouponsTable() {
+  const tbody = document.getElementById('couponsTable');
+  if (!coupons.length) { tbody.innerHTML = `<tr><td colspan="3"><div class="empty"><div class="empty-icon">🏷️</div>Nenhum cupom cadastrado.</div></td></tr>`; return; }
+  tbody.innerHTML = coupons.map(c => `
+    <tr style="${c.ativo ? '' : 'opacity:.45'}">
+      <td style="font-weight:700;letter-spacing:.05em">${c.codigo}</td>
+      <td style="color:var(--green);font-weight:700">${c.desconto}% de desconto ${c.ativo ? '' : '<span style="color:var(--muted)">(inativo)</span>'}</td>
+      <td><div class="td-actions">
+        <button class="btn-icon btn-edit" onclick="toggleCoupon(${c.id}, ${!c.ativo})">${c.ativo ? '⏸ Desativar' : '▶️ Ativar'}</button>
+        <button class="btn-icon btn-delete" onclick="deleteCoupon(${c.id}, '${c.codigo}')">🗑 Remover</button>
+      </div></td>
+    </tr>
+  `).join('');
+}
+
+async function addCoupon() {
+  const code = document.getElementById('couponCode').value.trim().toUpperCase();
+  const pct  = parseInt(document.getElementById('couponPct').value);
+  if (!code || !pct || pct < 1 || pct > 100) { showToast('⚠️ Informe código e percentual válido (1–100).'); return; }
+  try {
+    const [row] = await sbInsert('cupons', { codigo: code, desconto: pct });
+    coupons.push(row);
+    document.getElementById('couponCode').value = '';
+    document.getElementById('couponPct').value  = '';
+    renderCouponsTable();
+    showToast(`✅ Cupom ${code} adicionado!`);
+  } catch(e) { showToast('❌ Erro (cupom duplicado?): ' + e.message); }
+}
+
+async function toggleCoupon(id, ativo) {
+  try {
+    await sbUpdate('cupons', `id=eq.${id}`, { ativo });
+    const c = coupons.find(c => c.id === id);
+    if (c) c.ativo = ativo;
+    renderCouponsTable();
+    showToast(ativo ? '✅ Cupom ativado.' : '⏸ Cupom desativado.');
+  } catch(e) { showToast('❌ Erro: ' + e.message); }
+}
+
+async function deleteCoupon(id, code) {
+  if (!confirm(`Remover cupom ${code}?`)) return;
+  try {
+    await sbDelete('cupons', `id=eq.${id}`);
+    coupons = coupons.filter(c => c.id !== id);
+    renderCouponsTable();
+    showToast('🗑 Cupom removido.');
+  } catch(e) { showToast('❌ Erro: ' + e.message); }
+}
+
+/* ══ SAVE ALL (carrossel) ═════════════════════════ */
+async function saveAll() {
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = '⏳ Salvando...';
+  try {
+    // Carrossel: deletar tudo e reinserir com nova ordem
+    await sbDelete('carrossel', 'id=gt.0');
+    const validos = carrossel.filter(s => s.url.trim());
+    if (validos.length) {
+      await sbInsert('carrossel', validos.map((s, i) => ({ ordem: i+1, url: s.url.trim(), ativo: true })));
+    }
+    showToast('✅ Carrossel salvo no banco!');
+  } catch(e) {
+    showToast('❌ Erro ao salvar: ' + e.message);
+  } finally {
+    btn.disabled = false; btn.innerHTML = '💾 Salvar alterações';
+  }
+}
+
+/* ══ UTILS ════════════════════════════════════════ */
+function fmt(n) { return parseFloat(n).toFixed(2).replace('.', ','); }
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ══ KEYBOARD ═════════════════════════════════════ */
+document.getElementById('pwdInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') tryLogin();
+});
+</script>
+</body>
+</html>
