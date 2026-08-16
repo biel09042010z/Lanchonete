@@ -47,12 +47,12 @@
     .login-input {
       width: 100%; background: var(--card); border: 1px solid var(--border);
       color: var(--text); border-radius: var(--r);
-      padding: 13px 16px; font-size: 1rem; outline: none;
-      text-align: center; letter-spacing: .15em;
+      padding: 13px 16px; font-size: .95rem; outline: none;
       margin-bottom: 10px; transition: border-color .2s;
+      font-family: inherit;
     }
     .login-input:focus { border-color: var(--red); }
-    .login-input::placeholder { letter-spacing: 0; color: var(--muted); }
+    .login-input::placeholder { color: var(--muted); }
     .login-error { color: #f87171; font-size: .8rem; margin-bottom: 12px; min-height: 18px; }
     .btn-login {
       width: 100%; background: var(--red); color: #fff;
@@ -311,11 +311,14 @@
   <div class="login-card">
     <div class="login-icon">🔒</div>
     <div class="login-title">Área Restrita</div>
-    <p class="login-sub">Digite a senha para acessar o painel administrativo.</p>
-    <input class="login-input" type="password" id="pwdInput" placeholder="Senha" maxlength="30"
+    <p class="login-sub">Acesse com seu e-mail e senha.</p>
+    <input class="login-input" type="email" id="emailInput" placeholder="E-mail"
+      style="letter-spacing:0;text-align:left;padding-left:16px"
+      onkeydown="if(event.key==='Enter') document.getElementById('pwdInput').focus()" />
+    <input class="login-input" type="password" id="pwdInput" placeholder="Senha"
       onkeydown="if(event.key==='Enter') tryLogin()" />
     <div class="login-error" id="loginError"></div>
-    <button class="btn-login" onclick="tryLogin()">Entrar</button>
+    <button class="btn-login" id="loginBtn" onclick="tryLogin()">Entrar</button>
   </div>
 </div>
 
@@ -367,9 +370,18 @@
             <option value="Sobremesas">Sobremesas</option>
           </select>
         </div>
-        <div>
-          <label class="form-label">URL da imagem</label>
-          <input class="form-input" id="pImg" placeholder="https://..." />
+        <div class="full">
+          <label class="form-label">Imagem do produto</label>
+          <input type="file" id="pImgFile" accept="image/*" onchange="previewProductImg(this)" />
+          <label for="pImgFile" class="upload-box" style="width:100%;height:auto;flex-direction:row;padding:12px 16px;border-radius:var(--r);gap:10px" id="pImgLabel">
+            <span>📷</span>
+            <span id="pImgLabelText">Escolher da galeria</span>
+          </label>
+          <div id="pImgPreviewWrap" style="display:none;margin-top:10px;position:relative;width:100%;max-height:160px;border-radius:var(--r);overflow:hidden">
+            <img id="pImgPreview" src="" alt="Preview" style="width:100%;max-height:160px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border)" />
+            <button onclick="clearProductImg()" style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:26px;height:26px;font-size:.8rem;cursor:pointer;display:grid;place-items:center">✕</button>
+          </div>
+          <input type="hidden" id="pImg" />
         </div>
         <div class="full">
           <label class="form-label">Descrição *</label>
@@ -489,34 +501,118 @@ async function sbDelete(table, filter) {
   if (!r.ok) throw new Error(await r.text());
 }
 
-/* ══ CONFIG ═══════════════════════════════════════ */
-const ADMIN_PASSWORD = '09042010';
-
 /* ══ STATE ════════════════════════════════════════ */
 let products = [];
 let coupons  = [];
 let carrossel = [];
 let editingProductId = null;
 
-/* ══ LOGIN ════════════════════════════════════════ */
-function tryLogin() {
-  const pwd = document.getElementById('pwdInput').value;
-  if (pwd === ADMIN_PASSWORD) {
+/* ══ LOGIN — Supabase Auth ════════════════════════ */
+async function tryLogin() {
+  const email = document.getElementById('emailInput').value.trim();
+  const pwd   = document.getElementById('pwdInput').value;
+  const errEl = document.getElementById('loginError');
+  const btn   = document.getElementById('loginBtn');
+
+  if (!email || !pwd) { errEl.textContent = 'Preencha e-mail e senha.'; return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Entrando...';
+  errEl.textContent = '';
+
+  try {
+    const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pwd })
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error_description || data.msg || 'Credenciais inválidas.');
+
+    // Guardar token na sessão
+    sessionStorage.setItem('bh_token', data.access_token);
+    sessionStorage.setItem('bh_user', data.user?.email || email);
+
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminScreen').style.display = 'flex';
     init();
-  } else {
-    document.getElementById('loginError').textContent = 'Senha incorreta.';
+  } catch(e) {
+    errEl.textContent = e.message;
     document.getElementById('pwdInput').value = '';
-    document.getElementById('pwdInput').focus();
+  } finally {
+    btn.disabled = false; btn.textContent = 'Entrar';
   }
 }
 
-function logout() {
+async function logout() {
+  const token = sessionStorage.getItem('bh_token');
+  if (token) {
+    await fetch(`${SB_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${token}` }
+    }).catch(() => {});
+  }
+  sessionStorage.removeItem('bh_token');
+  sessionStorage.removeItem('bh_user');
   document.getElementById('adminScreen').style.display = 'none';
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('pwdInput').value = '';
+  document.getElementById('emailInput').value = '';
   document.getElementById('loginError').textContent = '';
+}
+
+// Verificar sessão ao carregar
+window.addEventListener('DOMContentLoaded', () => {
+  const token = sessionStorage.getItem('bh_token');
+  if (token) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'flex';
+    init();
+  }
+});
+
+/* ══ IMAGE UPLOAD ═════════════════════════════════ */
+let selectedImgFile = null;
+
+function previewProductImg(input) {
+  const file = input.files[0];
+  if (!file) return;
+  selectedImgFile = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('pImgPreview').src = url;
+  document.getElementById('pImgPreviewWrap').style.display = 'block';
+  document.getElementById('pImgLabelText').textContent = file.name;
+  document.getElementById('pImg').value = '';
+}
+
+function clearProductImg() {
+  selectedImgFile = null;
+  document.getElementById('pImgFile').value = '';
+  document.getElementById('pImgPreview').src = '';
+  document.getElementById('pImgPreviewWrap').style.display = 'none';
+  document.getElementById('pImgLabelText').textContent = 'Escolher da galeria';
+  document.getElementById('pImg').value = '';
+}
+
+async function uploadProductImg() {
+  if (!selectedImgFile) return document.getElementById('pImg').value || null;
+  const token = sessionStorage.getItem('bh_token');
+  const ext   = selectedImgFile.name.split('.').pop();
+  const path  = `${Date.now()}.${ext}`;
+
+  const res = await fetch(`${SB_URL}/storage/v1/object/produtos/${path}`, {
+    method: 'POST',
+    headers: {
+      'apikey': SB_KEY,
+      'Authorization': `Bearer ${token || SB_KEY}`,
+      'Content-Type': selectedImgFile.type,
+      'x-upsert': 'true'
+    },
+    body: selectedImgFile
+  });
+
+  if (!res.ok) throw new Error('Erro ao fazer upload da imagem.');
+  return `${SB_URL}/storage/v1/object/public/produtos/${path}`;
 }
 
 /* ══ TABS ═════════════════════════════════════════ */
@@ -568,7 +664,6 @@ async function saveProduct() {
   const price = parseFloat(document.getElementById('pPrice').value);
   const cat   = document.getElementById('pCat').value;
   const desc  = document.getElementById('pDesc').value.trim();
-  const img   = document.getElementById('pImg').value.trim();
 
   if (!name || !price || !desc) { showToast('⚠️ Preencha nome, preço e descrição.'); return; }
 
@@ -576,14 +671,18 @@ async function saveProduct() {
   btn.disabled = true; btn.textContent = '⏳ Salvando...';
 
   try {
+    const imgUrl = await uploadProductImg();
+
     if (editingProductId) {
-      await sbUpdate('produtos', `id=eq.${editingProductId}`, { nome: name, preco: price, categoria: cat, descricao: desc, imagem_url: img || null });
+      const body = { nome: name, preco: price, categoria: cat, descricao: desc };
+      if (imgUrl) body.imagem_url = imgUrl;
+      await sbUpdate('produtos', `id=eq.${editingProductId}`, body);
       const idx = products.findIndex(p => p.id === editingProductId);
-      if (idx > -1) products[idx] = { ...products[idx], name, price, cat, desc, img };
+      if (idx > -1) products[idx] = { ...products[idx], name, price, cat, desc, img: imgUrl || products[idx].img };
       editingProductId = null;
     } else {
-      const [row] = await sbInsert('produtos', { nome: name, preco: price, categoria: cat, descricao: desc, imagem_url: img || null });
-      products.push({ id: row.id, cat, name, desc, price, img, ativo: true });
+      const [row] = await sbInsert('produtos', { nome: name, preco: price, categoria: cat, descricao: desc, imagem_url: imgUrl || null });
+      products.push({ id: row.id, cat, name, desc, price, img: imgUrl || '', ativo: true });
     }
     clearProductForm();
     renderProductsTable();
@@ -603,7 +702,14 @@ function editProduct(id) {
   document.getElementById('pPrice').value = p.price;
   document.getElementById('pCat').value   = p.cat;
   document.getElementById('pDesc').value  = p.desc || '';
-  document.getElementById('pImg').value   = p.img || '';
+  // Mostrar imagem atual
+  clearProductImg();
+  if (p.img) {
+    document.getElementById('pImg').value = p.img;
+    document.getElementById('pImgPreview').src = p.img;
+    document.getElementById('pImgPreviewWrap').style.display = 'block';
+    document.getElementById('pImgLabelText').textContent = 'Trocar imagem';
+  }
   document.querySelector('#productForm .btn-primary').textContent = '💾 Atualizar produto';
   document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
 }
@@ -620,9 +726,10 @@ async function deleteProduct(id) {
 
 function clearProductForm() {
   editingProductId = null;
-  ['pName','pPrice','pDesc','pImg'].forEach(id => document.getElementById(id).value = '');
+  ['pName','pPrice','pDesc'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pCat').value = 'Combos';
   document.querySelector('#productForm .btn-primary').textContent = '💾 Salvar produto';
+  clearProductImg();
 }
 
 /* ══ CARROSSEL ════════════════════════════════════ */
